@@ -1,39 +1,42 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Mahasiswa, MahasiswaInput } from "@/lib/api";
+import { Mahasiswa, Prodi } from "@/lib/api";
 
 type Props = {
+  prodiList: Prodi[];
   selectedMahasiswa: Mahasiswa | null;
-  onSubmit: (payload: MahasiswaInput) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<void>;
   onCancelEdit: () => void;
 };
 
-const initialForm: MahasiswaInput = {
-  nim: "",
-  nama: "",
-  prodi: "",
-  angkatan: new Date().getFullYear(),
-};
-
 export default function MahasiswaForm({
+  prodiList,
   selectedMahasiswa,
   onSubmit,
   onCancelEdit,
 }: Props) {
-  const [form, setForm] = useState<MahasiswaInput>(initialForm);
+  const [nim, setNim] = useState("");
+  const [nama, setNama] = useState("");
+  const [prodiId, setProdiId] = useState("");
+  const [angkatan, setAngkatan] = useState(new Date().getFullYear());
+  const [foto, setFoto] = useState<File | null>(null);
+  
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (selectedMahasiswa) {
-      setForm({
-        nim: selectedMahasiswa.nim,
-        nama: selectedMahasiswa.nama,
-        prodi: selectedMahasiswa.prodi,
-        angkatan: selectedMahasiswa.angkatan,
-      });
+      setNim(selectedMahasiswa.nim);
+      setNama(selectedMahasiswa.nama);
+      setProdiId(String(selectedMahasiswa.prodi_id));
+      setAngkatan(selectedMahasiswa.angkatan);
+      setFoto(null); // Reset foto on edit
     } else {
-      setForm(initialForm);
+      setNim("");
+      setNama("");
+      setProdiId("");
+      setAngkatan(new Date().getFullYear());
+      setFoto(null);
     }
   }, [selectedMahasiswa]);
 
@@ -41,8 +44,24 @@ export default function MahasiswaForm({
     event.preventDefault();
     setLoading(true);
     try {
-      await onSubmit(form);
-      setForm(initialForm);
+      const formData = new FormData();
+      formData.append("nim", nim);
+      formData.append("nama", nama);
+      formData.append("prodi_id", prodiId);
+      formData.append("angkatan", String(angkatan));
+      if (foto) {
+        formData.append("foto", foto);
+      }
+
+      await onSubmit(formData);
+      
+      if (!selectedMahasiswa) {
+        setNim("");
+        setNama("");
+        setProdiId("");
+        setAngkatan(new Date().getFullYear());
+        setFoto(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -56,8 +75,8 @@ export default function MahasiswaForm({
           <label htmlFor="nim">NIM</label>
           <input
             id="nim"
-            value={form.nim}
-            onChange={(e) => setForm({ ...form, nim: e.target.value })}
+            value={nim}
+            onChange={(e) => setNim(e.target.value)}
             placeholder="Contoh: 2201001"
             required
           />
@@ -66,32 +85,48 @@ export default function MahasiswaForm({
           <label htmlFor="nama">Nama</label>
           <input
             id="nama"
-            value={form.nama}
-            onChange={(e) => setForm({ ...form, nama: e.target.value })}
+            value={nama}
+            onChange={(e) => setNama(e.target.value)}
             placeholder="Nama mahasiswa"
             required
           />
         </div>
         <div className="form-group">
-          <label htmlFor="prodi">Prodi</label>
-          <input
-            id="prodi"
-            value={form.prodi}
-            onChange={(e) => setForm({ ...form, prodi: e.target.value })}
-            placeholder="Informatika"
+          <label htmlFor="prodi_id">Prodi</label>
+          <select
+            id="prodi_id"
+            value={prodiId}
+            onChange={(e) => setProdiId(e.target.value)}
             required
-          />
+            style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db" }}
+          >
+            <option value="" disabled>Pilih Prodi</option>
+            {prodiList.map((p) => (
+              <option key={p.id} value={p.id}>{p.nama_prodi}</option>
+            ))}
+          </select>
         </div>
         <div className="form-group">
           <label htmlFor="angkatan">Angkatan</label>
           <input
             id="angkatan"
             type="number"
-            value={form.angkatan}
-            onChange={(e) =>
-              setForm({ ...form, angkatan: Number(e.target.value) })
-            }
+            value={angkatan}
+            onChange={(e) => setAngkatan(Number(e.target.value))}
             required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="foto">Upload Foto {selectedMahasiswa && '(Biarkan kosong jika tidak diubah)'}</label>
+          <input
+            id="foto"
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                setFoto(e.target.files[0]);
+              }
+            }}
           />
         </div>
       </div>
